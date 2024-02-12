@@ -59,7 +59,7 @@ end
 
 function LiveTypeset(force)
     if force then
-        vim.cmd([[:w]])
+        vim.cmd([[:silent! write]])
         vim.g.live_typeset_last_called = 0
         vim.g.live_typeset_triggered = true
     else
@@ -69,7 +69,7 @@ function LiveTypeset(force)
                 -- this will trigger the live preview every
                 -- 1s after the last save
                 -- save current buffer, so that the pdf is updated
-                vim.cmd([[:w]])
+                vim.cmd([[:silent! write]])
                 vim.g.live_typeset_last_called = time
                 vim.g.live_typeset_triggered = true
             end
@@ -85,7 +85,7 @@ function TermPDFCacheRead(filename)
     cache_file = string.gsub(cache_file, ' ', '_')
     cache_file = string.gsub(cache_file, '%.', '_')
     cache_file = '/Users/marcos/.cache/termpdf.py/' .. cache_file
-    print('cache_file: ' .. cache_file)
+    -- print('cache_file: ' .. cache_file)
     -- print('page: ' .. page)
     -- test if that file exists
     local f = io.open(cache_file, 'r') or nil
@@ -110,7 +110,7 @@ function TermPDFCacheWrite(filename, t)
     -- print('page: ' .. page)
     -- test if that file exists
     local f = io.open(cache_file, 'w')
-    print(vim.inspect(t))
+    -- print(vim.inspect(t))
     if f ~= nil then
         f:write(vim.json.encode(t))
         f:close()
@@ -125,12 +125,12 @@ function SyncTexView()
     pdf_file = 'main.pdf'
     local synctex = io.popen(
         'synctex view -i '
-        .. line
-        .. ':1:'
-        .. tex_file
-        .. ' -o '
-        .. pdf_file
-        .. " | grep 'Page:' | head -1 | grep -o '[0-9]\\+'"
+            .. line
+            .. ':1:'
+            .. tex_file
+            .. ' -o '
+            .. pdf_file
+            .. " | grep 'Page:' | head -1 | grep -o '[0-9]\\+'"
     )
     local page = nil
     if synctex ~= nil then
@@ -163,7 +163,7 @@ function TermPDF(pdf_file, pdf_page, force_reload)
     -- chekc if pdf_file exists
     if vim.fn.filereadable(pdf_file) == 0 then return end
 
-    print('kitty @' .. kitty_to .. 'launch --title=live_preview')
+    -- print('kitty @' .. kitty_to .. 'launch --title=live_preview')
 
     local reload = false
     local time = tonumber(vim.fn.reltimefloat(vim.fn.reltime())) * 1000.0
@@ -183,10 +183,10 @@ function TermPDF(pdf_file, pdf_page, force_reload)
                 local hostname = vim.fn.system('hostname')
                 vim.fn.system(
                     'kitty @'
-                    .. kitty_to
-                    .. 'send-text --match title:live_preview "ssh '
-                    .. hostname
-                    .. '\n"'
+                        .. kitty_to
+                        .. 'send-text --match title:live_preview "ssh '
+                        .. hostname
+                        .. '\n"'
                 )
                 vim.fn.sleep(1000)
             end
@@ -196,11 +196,11 @@ function TermPDF(pdf_file, pdf_page, force_reload)
         -- 2. send the file to the new window
         vim.fn.system(
             'kitty @'
-            .. kitty_to
-            .. 'kitten kittens/termpdf.py '
-            .. pdf_file
-            .. ' '
-            .. pdf_page
+                .. kitty_to
+                .. 'kitten kittens/termpdf.py '
+                .. pdf_file
+                .. ' '
+                .. pdf_page
         )
         vim.g.termpdf_lastcalled = time
     end
@@ -225,7 +225,7 @@ function VimtexCallback(status)
     end
 end
 
-function M.InkscapeFigures()
+function InkscapeFigures()
     -- Get the current line
     vim.cmd([[let b:line = getline('.')]])
     -- remove \incfig{ and } in lua
