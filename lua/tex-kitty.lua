@@ -13,8 +13,8 @@ local M = {}
 -- Configuration {{{
 
 -- save globally
-vim.g.__tex_kitty_module_was_loaded = true
-if vim.g.__tex_kitty_module_was_loaded then return end
+-- ckec if the module was already loaded by checking if the global variable
+-- __tex_kitty_module_was_loaded exists
 
 DEFAULT_CONFIG = {
     set_shorcuts = true,
@@ -125,12 +125,12 @@ function SyncTexView()
     pdf_file = 'main.pdf'
     local synctex = io.popen(
         'synctex view -i '
-            .. line
-            .. ':1:'
-            .. tex_file
-            .. ' -o '
-            .. pdf_file
-            .. " | grep 'Page:' | head -1 | grep -o '[0-9]\\+'"
+        .. line
+        .. ':1:'
+        .. tex_file
+        .. ' -o '
+        .. pdf_file
+        .. " | grep 'Page:' | head -1 | grep -o '[0-9]\\+'"
     )
     local page = nil
     if synctex ~= nil then
@@ -183,10 +183,10 @@ function TermPDF(pdf_file, pdf_page, force_reload)
                 local hostname = vim.fn.system('hostname')
                 vim.fn.system(
                     'kitty @'
-                        .. kitty_to
-                        .. 'send-text --match title:live_preview "ssh '
-                        .. hostname
-                        .. '\n"'
+                    .. kitty_to
+                    .. 'send-text --match title:live_preview "ssh '
+                    .. hostname
+                    .. '\n"'
                 )
                 vim.fn.sleep(1000)
             end
@@ -196,11 +196,11 @@ function TermPDF(pdf_file, pdf_page, force_reload)
         -- 2. send the file to the new window
         vim.fn.system(
             'kitty @'
-                .. kitty_to
-                .. 'kitten kittens/termpdf.py '
-                .. pdf_file
-                .. ' '
-                .. pdf_page
+            .. kitty_to
+            .. 'kitten kittens/termpdf.py '
+            .. pdf_file
+            .. ' '
+            .. pdf_page
         )
         vim.g.termpdf_lastcalled = time
     end
@@ -270,25 +270,25 @@ if vim.g.set_shorcuts then
         { 'n', 'i' },
         '<S-CR>',
         ':VimtexCompile<cr>',
-        { noremap = true, silent = false }
+        { noremap = true, silent = true }
     )
     vim.keymap.set(
         { 'i' },
         '<C-i>',
         '<esc><cmd>:lua InkscapeFigures()<cr>',
-        { noremap = true, silent = false }
+        { noremap = true, silent = true }
     )
     vim.keymap.set(
         { 'n', 'i' },
         '<C-s>',
-        '<esc><cmd>:lua SyncTexView()<cr>',
-        { noremap = true, silent = false }
+        '<cmd>:lua SyncTexView()<cr>',
+        { noremap = true, silent = true }
     )
     vim.keymap.set(
         { 'n', 'i' },
         '<C-e>',
         '<esc><cmd>:lua SyncTexEdit()<cr>',
-        { noremap = true, silent = false }
+        { noremap = true, silent = true }
     )
 end
 

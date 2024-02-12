@@ -6,6 +6,10 @@ Kitty terminal emulator.
 It uses the `kitty` terminal emulator's image protocol to display the PDF
 output of the TeX/LaTeX document side-by-side with the source code.
 
+
+PREVIEW COMING SOON
+
+
 Installation
 ------------
 Using the lazy.nvim plugin manager, add the following line to your `init.vim`:
