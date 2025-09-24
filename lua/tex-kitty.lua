@@ -9,6 +9,26 @@
 
 local M = {}
 
+-- plugin load we want to start inkscape-figures command to watch the figures
+-- folder. We can do this by checking if the module was already loaded by checking if
+-- the global variable __tex_kitty_module_was_loaded exists
+if not vim.g.__tex_kitty_module_was_loaded then
+    -- start inkscape-figures watch command
+    vim.fn.system('inkscape-figures watch ' .. './figures/')
+    -- we also craete a autocomand to kill the process when nvim exits
+    -- this is done by checking if the process is running and killing it
+    vim.api.nvim_exec(
+        [[
+      augroup InkscapeFiguresWatch
+        autocmd!
+        autocmd VimLeavePre * call system('pkill -f "inkscape-figures watch"')
+      augroup end
+    ]],
+        false
+    )
+end
+vim.g.__tex_kitty_module_was_loaded = true
+
 ------------------------------------------------------------------------------
 -- Configuration {{{
 
@@ -171,29 +191,64 @@ function TermPDF(pdf_file, pdf_page, force_reload)
 
     if force_reload then reload = true end
 
+    local use_kitty = true
+    local use_tmux = false
+    local use_zellij = false
+    local panes_before = {}
+    if vim.fn.empty(vim.fn.getenv('TMUX')) == 0 then
+        use_kitty = false
+        use_tmux = true
+        -- we need to check what are the tmux panes at the moment, so when we
+        -- create a new one we can track the id of the new one
+        panes_before = vim.fn.systemlist('tmux list-panes -F "#{pane_id}"')
+        -- print(vim.inspect(panes_before))
+    end
+    if vim.fn.empty(vim.fn.getenv('ZELLIJ')) == 0 then
+        use_kitty = false
+        use_zellij = true
+    end
+
     if reload then
         -- vim.fn.system("kitty @ set-background-opacity 1.0")
         -- 1. open a new kitty window
         if not vim.g.termpdf_panelopened then
-            vim.fn.system(
-                'kitty @' .. kitty_to .. 'launch --title=live_preview'
-            )
-            -- if on ssh, ssh into the machine
-            if ssh_tty then
-                local hostname = vim.fn.system('hostname')
+            if use_kitty then
                 vim.fn.system(
-                    'kitty @'
-                        .. kitty_to
-                        .. 'send-text --match title:live_preview "ssh '
-                        .. hostname
-                        .. '\n"'
+                    'kitty @' .. kitty_to .. 'launch --title=live_preview'
                 )
-                vim.fn.sleep(1000)
+                vim.g.termpdf_panelopened = true
+            elseif use_tmux then
+                vim.fn.system('tmux split-window -d -h')
+                -- now we check the panes again to get the id of the new one
+                -- and we rename it to live_preview
+                local panes_after =
+                    vim.fn.systemlist('tmux list-panes -F "#{pane_id}"')
+                for _, pane in ipairs(panes_after) do
+                    if not vim.tbl_contains(panes_before, pane) then
+                        vim.g.new_pane = pane
+                        break
+                    end
+                end
+                if vim.g.new_pane ~= '' then
+                    vim.fn.system(
+                        'tmux select-pane -t '
+                            .. vim.g.new_pane
+                            .. ' -T live_preview'
+                    )
+                end
+                vim.g.termpdf_panelopened = true
+            elseif use_zellij then
+                vim.fn.system('zellij action new-pane --name live_preview')
+                vim.g.termpdf_panelopened = true
+            else
+                print('No supported terminal multiplexer found')
+                return
             end
-            vim.g.termpdf_panelopened = true
         end
+    end
 
-        -- 2. send the file to the new window
+    -- 2. send the file to the new window
+    if use_kitty then
         vim.fn.system(
             'kitty @'
                 .. kitty_to
@@ -203,7 +258,53 @@ function TermPDF(pdf_file, pdf_page, force_reload)
                 .. pdf_page
         )
         vim.g.termpdf_lastcalled = time
+    elseif use_tmux then
+        print('sending to pane ' .. vim.g.new_pane)
+        vim.fn.system(
+            'tmux send-keys -t '
+                .. vim.g.new_pane
+                .. ' "termpdf.py '
+                .. pdf_file
+                .. ' '
+                .. pdf_page
+                .. '" C-m'
+        )
+        vim.g.termpdf_lastcalled = time
+    elseif use_zellij then
+        vim.fn.system(
+            'zellij action write-chars --pane-name live_preview "termpdf.py '
+                .. pdf_file
+                .. ' '
+                .. pdf_page
+                .. '\n"'
+        )
+        vim.g.termpdf_lastcalled = time
+    else
+        print('No supported terminal multiplexer found')
+        return
     end
+    -- vim.fn.system(
+    --     'kitty @'
+    --         .. kitty_to
+    --         .. 'kitten kittens/termpdf.py '
+    --         .. pdf_file
+    --         .. ' '
+    --         .. pdf_page
+    -- )
+    -- zellij action write-chars --pane-id 2 "ls -la\n"
+    --zellij action move-focus right;
+    --zellij action write-chars $(xclip -o); zellij action move-focus left
+    -- vim.fn.system('zellij action move-focus right')
+    -- vim.fn.system(
+    --     'zellij action write-chars "disp '
+    --         .. pdf_file
+    --         .. ' '
+    --         .. pdf_page
+    --         .. '\n"'
+    -- )
+    -- vim.fn.system('zellij action move-focus left')
+    -- vim.g.termpdf_lastcalled = time
+    -- end
     vim.g.live_typeset_triggered = false
 end
 
@@ -221,7 +322,6 @@ function VimtexCallback(status)
         if vim.fn.filereadable(pdf_file) == 1 then TermPDF(pdf_file) end
     elseif vim.fn.filereadable(pdf_file) == 1 then
         TermPDF(pdf_file)
-        vim.api.nvim_out_write('Compilation unsuccesful!\n')
     end
 end
 
@@ -232,12 +332,16 @@ function InkscapeFigures()
     vim.cmd([[let b:line = substitute(b:line, '\\incfig{', '', '')]])
     vim.cmd([[let b:line = substitute(b:line, '}', '', '')]])
 
-    local root = vim.b.vimtex.root .. '/figures/'
+    root = vim.b.vimtex.root .. '/figures/'
     -- check if the file exists
     if vim.fn.filereadable(root .. vim.b.line .. '.svg') == 0 then
+        -- print('inkscape-figures create ' .. vim.b.line .. ' ' .. root)
         vim.fn.system('inkscape-figures create ' .. vim.b.line .. ' ' .. root)
     else
-        vim.fn.system('inkscape-figures edit ' .. vim.b.line .. ' ' .. root)
+        -- print('inkscape-figures edit ' .. root .. '/' .. vim.b.line .. '.svg')
+        vim.fn.system(
+            'inkscape-figures edit ' .. root .. '/' .. vim.b.line .. '.svg'
+        )
     end
 end
 
@@ -275,6 +379,12 @@ if vim.g.set_shorcuts then
     vim.keymap.set(
         { 'i' },
         '<C-i>',
+        '<esc><cmd>:lua InkscapeFigures()<cr>',
+        { noremap = true, silent = true }
+    )
+    vim.keymap.set(
+        { 'n' },
+        '<C-w>',
         '<esc><cmd>:lua InkscapeFigures()<cr>',
         { noremap = true, silent = true }
     )
