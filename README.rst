@@ -1,70 +1,83 @@
 tex-kitty
 =========
 
-A simple and lightweight TeX/LaTeX tool to compile and preview documents in the
-Kitty terminal emulator.
-It uses the `kitty` terminal emulator's image protocol to display the PDF
-output of the TeX/LaTeX document side-by-side with the source code.
+A lightweight Neovim plugin for TeX/LaTeX that compiles documents and opens
+live PDF preview in a side pane (kitty/tmux/zellij).
 
-
-PREVIEW COMING SOON
-
+The preview command is now powered by ``pdfcat`` (configurable).
 
 Installation
 ------------
-Using the lazy.nvim plugin manager, add the following line to your `init.vim`:
-Lazy 'jbyuki/tex-kitty'
 
-..code:block:: lua
-    lua
+Example with lazy.nvim:
+
+.. code-block:: lua
+
     {
-        'marromlam/tex-kitty'
-        ft='tex',
-        dependencies = {
-            "lervag/vimtex",
-        },
-        config = function()
-            require("tex-kitty").setup({
-                tex_kitty_preview = 1,
-            })
-        end,
+      'marromlam/tex-kitty',
+      ft = 'tex',
+      dependencies = {
+        'lervag/vimtex',
+      },
+      config = function()
+        require('tex-kitty').setup({
+          live_enabled = true,
+          viewer_cmd = 'pdfcat',
+          viewer_args = {},
+          force_tinted = true,
+          backend = 'tmux',
+        })
+      end,
     }
+
+Requirements
+------------
+
+- Neovim
+- vimtex
+- ``pdfcat`` in ``PATH`` (or configure ``viewer_cmd``)
+- ``synctex`` command available
 
 Usage
 -----
-The plugin provides the following commands:
-- [x] `:lua SyncTexView`: Update the PDF preview to the current line in the source code.
-- [ ] `:lua SyncTexEdit`: Update the source code to the current page in the PDF preview.
-- [x] `:lua TermPDF(pdf_file, page, force_reload)`: Open a new terminal window with the PDF preview.
-- [x] `:lua TermPDFClose()`: Close the terminal window with the PDF preview.
-- [x] `:lua InkscapeFigures()`: Open inkscape to edit the current figure. Also
-  transforms the figure to a pdf_tex file.
 
-The plugin also provides the following mappings:
-- [x] `<S-CR>`: Turn on compliation and preview of the document.
-- [x] `<C-i>`: Create/edit the figure under the cursor.
-- [x] `<C-s>`: Sync the source code with the PDF preview.
+Commands:
 
-When live_typeset is enable, the plugin will automatically compile the document
-as the user types or moves around the document.
-To disable this feature, set the `tex_kitty_preview` option to `false`.
+- ``:PdfCat [page]``: manually open/update preview for current TeX/PDF buffer.
+- ``:ViewPDF [page]``: alias for ``:PdfCat`` (backward compatibility).
+- ``:lua SyncTexView()``: jump preview to the current source line.
+- ``:lua SyncTexEdit()``: trigger reverse SyncTeX (PDF -> source) in the preview pane.
+- ``:lua PdfCat(pdf_file, page, force_reload)``: open/update preview pane.
+- ``:lua PdfCatClose()``: close preview pane.
+- ``:lua InkscapeFigures()``: create/edit figure under cursor.
+
+Default mappings:
+
+- ``<S-CR>`` / ``<S-Enter>``: compile with vimtex
+- ``<F13>``: compile fallback (useful with tmux remap from ``S-Enter``)
+- ``<C-i>``: create/edit figure
+- ``<C-s>``: SyncTeX source -> preview
+- ``<C-e>``: trigger reverse SyncTeX in preview pane
 
 Configuration
 -------------
-The plugin provides the following options:
 
-.code-block:: lua
+.. code-block:: lua
 
-    DEFAULT_CONFIG = {
+    {
       set_shorcuts = true,
       live_enabled = true,
-   }
+      viewer_cmd = 'pdfcat',
+      viewer_args = {},      -- extra args appended before file path
+      force_tinted = true,   -- append --force-tinted to viewer command
+      backend = 'tmux',      -- tmux|kitty|auto|zellij
+      panel_title = 'live_preview',
+    }
 
-To change the default configuration, use the `setup` function.
+Notes
+-----
 
-
-
-
-
-
-
+- ``SyncTexView`` now drives preview via CLI page argument (``-p``), not cache-file edits.
+- Reverse SyncTeX from viewer uses ``Ctrl+S`` in ``pdfcat``.
+- If ``Ctrl+S`` is intercepted by terminal flow control, run ``stty -ixon``.
+- Default backend is tmux. Use backend kitty for right-side kitty panes, or backend auto for environment-based detection.
