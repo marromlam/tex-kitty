@@ -1,17 +1,23 @@
-tex-kitty
-=========
+# tex-kitty
 
 A lightweight Neovim plugin for TeX/LaTeX that compiles documents and opens
 live PDF preview in a side pane (kitty/tmux/zellij).
 
 The preview command is now powered by ``pdfcat`` (configurable).
 
-Installation
-------------
+
+
+https://github.com/user-attachments/assets/638f51e5-42d4-48c1-a62f-a4675efaf866
+
+
+
+
+## Installation
+
 
 Example with lazy.nvim:
 
-.. code-block:: lua
+```lua
 
     {
       'marromlam/tex-kitty',
@@ -29,17 +35,17 @@ Example with lazy.nvim:
         })
       end,
     }
+```
 
-Requirements
-------------
+## Requirements
 
 - Neovim
 - vimtex
 - ``pdfcat`` in ``PATH`` (or configure ``viewer_cmd``)
 - ``synctex`` command available
 
-Usage
------
+
+## Usage
 
 Commands:
 
@@ -59,10 +65,10 @@ Default mappings:
 - ``<C-s>``: SyncTeX source -> preview
 - ``<C-e>``: trigger reverse SyncTeX in preview pane
 
-Configuration
--------------
 
-.. code-block:: lua
+## Configuration
+
+```lua
 
     {
       set_shorcuts = true,
@@ -74,8 +80,10 @@ Configuration
       panel_title = 'live_preview',
     }
 
-Notes
------
+```
+
+## Notes
+
 
 - ``SyncTexView`` now drives preview via CLI page argument (``-p``), not cache-file edits.
 - Reverse SyncTeX from viewer uses ``Ctrl+S`` in ``pdfcat``.
